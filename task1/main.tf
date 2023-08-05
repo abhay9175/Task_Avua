@@ -1,66 +1,67 @@
 terraform {
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 3.0.0"
+    docker = {
+      source = "kreuzwerker/docker"
+      version = ">= 2.14.0"
     }
   }
 }
-
 variable "dockerhub_username" {
   type = string
+  default = ""
 }
 
 variable "dockerhub_password" {
   type = string
+  default = ""
 }
 
-variable "aws_account" {
+variable "dockerhub_repository" {
   type = string
-}
-
-variable "aws_region" {
-  type    = string
-  default = "ap-northeast-1"
-}
-
-variable "aws_profile" {
-  type    = string
-  default = "nishant"
-}
-
-provider "aws" {
-  region = var.aws_region
-  profile = var.aws_profile
-}
-
-resource "aws_ecr_repository" "my_python_app_repo" {
-  name = "my-python-app-repo"
-}
-
-resource "null_resource" "docker_build" {
-  triggers = {
-    timestamp = timestamp()
-  }
-
-  provisioner "local-exec" {
-    command     = local.dkr_build_cmd
-    interpreter = ["bash", "-c"]
-  }
+  default = "new-repo"
 }
 
 locals {
-  ecr_repo         = "my-python-app-repo"
-  image_tag        = "latest"
-  dkr_img_src_path = "${path.module}/docker-src"
-  dkr_img_src_sha256 = sha256(join("", [for f in fileset(local.dkr_img_src_path, "**") : filemd5(f.content)]))
-
-  dkr_build_cmd = <<-EOT
-    aws ecr get-login-password --region ${var.aws_region} --profile ${var.aws_profile} | docker login --username AWS --password-stdin ${var.aws_account}.dkr.ecr.${var.aws_region}.amazonaws.com
-    docker build -t ${var.aws_account}.dkr.ecr.${var.aws_region}.amazonaws.com/${local.ecr_repo}:${local.image_tag} \
-        -f ${local.dkr_img_src_path}/Dockerfile ${local.dkr_img_src_path}
-
-    docker push ${var.aws_account}.dkr.ecr.${var.aws_region}.amazonaws.com/${local.ecr_repo}:${local.image_tag}
-  EOT
+  image_tag = "latest"
 }
 
+resource "null_resource" "docker_login" {
+  triggers = {
+    always_run = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      docker login --username "${var.dockerhub_username}" --password-stdin <<< "${var.dockerhub_password}"
+    EOT
+  }
+}
+resource "docker_image" "build_image" {
+  name         = "my-docker-image"
+  build {
+    context    = "./"  # Replace with the path to your Docker build context.
+    dockerfile = "./Dockerfile"  # Replace with the path to your Dockerfile (relative to the context).
+  }
+}
+resource "null_resource" "tag_image" {
+  triggers = {
+    docker_image_id = docker_image.build_image.image_id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      docker tag ${docker_image.build_image.image_id} ${var.dockerhub_username}/${var.dockerhub_repository}:${local.image_tag}
+    EOT
+  }
+}
+resource "null_resource" "push_image" {
+  triggers = {
+    tag_image = null_resource.tag_image.id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      docker push ${var.dockerhub_username}/${var.dockerhub_repository}:${local.image_tag}
+    EOT
+  }
+}
