@@ -6,24 +6,6 @@ terraform {
     }
   }
 }
-variable "dockerhub_username" {
-  type = string
-  default = ""
-}
-
-variable "dockerhub_password" {
-  type = string
-  default = ""
-}
-
-variable "dockerhub_repository" {
-  type = string
-  default = "new-repo"
-}
-
-locals {
-  image_tag = "latest"
-}
 
 resource "null_resource" "docker_login" {
   triggers = {
@@ -36,13 +18,15 @@ resource "null_resource" "docker_login" {
     EOT
   }
 }
+
 resource "docker_image" "build_image" {
   name         = "my-docker-image"
   build {
-    context    = "./"  # Replace with the path to your Docker build context.
-    dockerfile = "./Dockerfile"  # Replace with the path to your Dockerfile (relative to the context).
+    context    = "./"  
+    dockerfile = "./Dockerfile"  
   }
 }
+
 resource "null_resource" "tag_image" {
   triggers = {
     docker_image_id = docker_image.build_image.image_id
@@ -54,6 +38,7 @@ resource "null_resource" "tag_image" {
     EOT
   }
 }
+
 resource "null_resource" "push_image" {
   triggers = {
     tag_image = null_resource.tag_image.id

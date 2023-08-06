@@ -1,7 +1,9 @@
-#Dockerfile, image, container
+FROM golang:1.16-alpine
+WORKDIR /app
+COPY go.mod go.sum ./
+COPY app.go .
+RUN go mod download
+RUN go build -o app
+ENTRYPOINT ["./app"]
+EXPOSE 8080
 
-FROM python:3.8-slim-buster
-ADD . /python-flask
-WORKDIR /python-flask
-RUN pip install -r requirements.txt
-CMD [ "python", "./myapp.py" ]
