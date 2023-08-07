@@ -1,0 +1,87 @@
+---
+- name: Provision AWS EC2 instance
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+    - name: Create EC2 instance
+      ec2:
+        key_name: YOUR_EC2_KEY_NAME
+        instance_type: t2.micro
+        image: YOUR_AMI_ID
+        region: YOUR_AWS_REGION
+        security_groups: YOUR_SECURITY_GROUP_NAME
+        wait: yes
+        count: 1
+        instance_tags:
+        Name: my-go-app-instance
+        register: ec2_instance
+
+- name: Wait for SSH to be available
+  wait_for:
+    host: "{{ ec2_instance.instances[0].public_ip }}"
+    port: 22
+    delay: 10
+    timeout: 180
+
+- name: Copy Go application to the instance
+  copy:
+    src: app.go
+    dest: /home/ec2-user/app.go
+    mode: '0644'
+
+- name: Install Go on the instance
+  become: true
+  yum:
+    name: golang
+    state: present
+
+- name: Build and run the Go application
+  become: true
+  command: "go run /home/ec2-user/app.go > /dev/null 2>&1 &"
+  args:
+    chdir: /home/ec2-user
+---
+- name: Provision AWS EC2 instance
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+    - name: Create EC2 instance
+      ec2:
+        key_name: mykey
+        instance_type: t2.micro
+        image: AMI_ID
+        region: ap-south-1
+        security_groups: YOUR_SECURITY_GROUP_NAME
+        wait: yes
+        count: 1
+        instance_tags:
+        Name: my-go-app-instance
+        register: ec2_instance
+
+- name: Wait for SSH to be available
+  wait_for:
+    host: "{{ ec2_instance.instances[0].public_ip }}"
+    port: 22
+    delay: 10
+    timeout: 180
+
+- name: Copy Go application to the instance
+  copy:
+    src: app.go
+    dest: /home/ec2-user/app.go
+    mode: '0644'
+
+- name: Install Go on the instance
+  become: true
+  yum:
+    name: golang
+    state: present
+
+- name: Build and run the Go application
+  become: true
+  command: "go run /home/ec2-user/app.go > /dev/null 2>&1 &"
+  args:
+    chdir: /home/ec2-user
+

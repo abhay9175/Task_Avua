@@ -1,11 +1,11 @@
 variable "dockerhub_username" {
   type = string
-  default = ""
+  default ="username" #fill the username 
 }
 
 variable "dockerhub_password" {
   type = string
-  default = ""
+  default = "password" #Fill the username
 }
 
 variable "dockerhub_repository" {
